@@ -1,13 +1,18 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import * as fs from "fs";
 import * as path from "path";
+import * as child_process from "child_process";
 
 interface SubtitleCur {
     cur: number;
 }
 
+interface ChildProcessTracker {
+    [index: string]: child_process.ChildProcess;
+}
 
 
+let childProcessTracker: ChildProcessTracker = {};
 
 function createWindow(): void {
     const win = new BrowserWindow(
@@ -26,19 +31,18 @@ function createWindow(): void {
     let subtitleFPath: string = "./test.txt";
 
     function loadSubtitle(): void {
-        console.log(subtitleCur.cur);
-        fs.readFile(subtitleFPath, 'utf-8', (err, data: string) => {
-            if (err) {
-                console.log(err);
-            } else {
-                let subLines: string[] = data.split('\n');
-                let newSubs: string = subLines.slice(subtitleCur.cur).join("<br>");
-                subtitleCur.cur = subLines.length;
-                console.log(newSubs);
-                win.webContents.send('update-subtitle', newSubs);
-            }
+        childProcessTracker.liveTranscripterProc = child_process.spawn(
+            "python", 
+            ["/home/ciel/Documents/Projects/whisper-subs/transcripter/emulated_source.py"]
+        )
+
+        childProcessTracker.liveTranscripterProc.stdout?.on('data', (data: string): void=>{
+            console.log(data);
         });
-        setTimeout(loadSubtitle, 1000);
+
+        childProcessTracker.liveTranscripterProc.stderr?.on("data", (data: string): void => {
+            console.log(`err ${data}`);
+        });
     }
 
     loadSubtitle();
@@ -64,5 +68,9 @@ app.whenReady().then(
 app.on("window-all-closed", () => {
     if (process.platform !== "darwin") {
         app.quit();
+    }
+
+    for (let childProcKey in childProcessTracker) {
+        childProcessTracker[childProcKey].kill();
     }
 });
