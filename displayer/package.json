@@ -9,6 +9,10 @@
   "author": "ciel",
   "license": "MIT",
   "devDependencies": {
+    "@types/yargs": "^17.0.13",
     "electron": "^21.2.2"
+  },
+  "dependencies": {
+    "yargs": "^17.6.2"
   }
 }

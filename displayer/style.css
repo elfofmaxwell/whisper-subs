@@ -1,9 +1,10 @@
 body {
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.6);
     color: #fff;
     -webkit-app-region: drag;
 }
 
 #subtitleText {
-    margin: auto;
+    text-align: center;
+    font-family: Arial, Helvetica, sans-serif;
 }

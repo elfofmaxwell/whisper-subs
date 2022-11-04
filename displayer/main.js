@@ -24,8 +24,38 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
-const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const child_process = __importStar(require("child_process"));
+const yargs = __importStar(require("yargs"));
+const argv = yargs.option('url', {
+    description: "The stream url",
+    type: "string",
+    alias: 'u',
+}).option('model', {
+    alias: 'm',
+    description: "The model used to transcribe",
+    type: 'string',
+    default: "small",
+}).option('language', {
+    alias: 'l',
+    description: "Language of the stream",
+    type: 'string',
+    default: "Japanese",
+}).option('interval', {
+    alias: 'i',
+    description: "The interval to slice the audio",
+    type: 'number',
+    default: 2,
+}).option("historyBuffer", {
+    alias: 'h',
+    description: "The history buffer size for previous transcribed text",
+    type: "number",
+    default: 0,
+}).help().alias('help', 'h').parseSync();
+if (argv.url === undefined) {
+    throw new Error("No url provided");
+}
+let childProcessTracker = {};
 function createWindow() {
     const win = new electron_1.BrowserWindow({
         width: 1080,
@@ -36,27 +66,30 @@ function createWindow() {
             preload: path.join(__dirname, "preload.js"),
         },
     });
-    let subtitleCur = { cur: 0 };
-    let subtitleFPath = "./test.txt";
     function loadSubtitle() {
-        console.log(subtitleCur.cur);
-        fs.readFile(subtitleFPath, 'utf-8', (err, data) => {
-            if (err) {
-                console.log(err);
-            }
-            else {
-                let subLines = data.split('\n');
-                let newSubs = subLines.slice(subtitleCur.cur).join("<br>");
-                subtitleCur.cur = subLines.length;
-                console.log(newSubs);
-                win.webContents.send('update-subtitle', newSubs);
-            }
+        var _a, _b;
+        childProcessTracker.liveTranscripterProc = child_process.spawn("python", [
+            "-u",
+            path.join(path.dirname(__dirname), "transcripter", "transcripter.py"),
+            argv.url,
+            "--model", argv.model,
+            "--language", argv.language,
+            "--task", "transcribe",
+            "--interval", String(argv.interval),
+            "--history_buffer_size", String(argv.historyBuffer),
+        ]);
+        (_a = childProcessTracker.liveTranscripterProc.stdout) === null || _a === void 0 ? void 0 : _a.on('data', (data) => {
+            console.log(data.toString('utf-8'));
+            win.webContents.send('update-subtitle', data.toString('utf-8'));
         });
-        setTimeout(loadSubtitle, 1000);
+        (_b = childProcessTracker.liveTranscripterProc.stderr) === null || _b === void 0 ? void 0 : _b.on("data", (data) => {
+            console.log(`err ${data}`);
+        });
     }
     loadSubtitle();
+    //console.log(childProcessTracker);
     win.loadFile('index.html');
-    //win.webContents.openDevTools();
+    // win.webContents.openDevTools();
 }
 ;
 electron_1.app.whenReady().then(() => {
@@ -70,5 +103,8 @@ electron_1.app.whenReady().then(() => {
 electron_1.app.on("window-all-closed", () => {
     if (process.platform !== "darwin") {
         electron_1.app.quit();
+    }
+    for (let childProcKey in childProcessTracker) {
+        childProcessTracker[childProcKey].kill();
     }
 });
