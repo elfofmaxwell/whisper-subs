@@ -47,7 +47,7 @@ const argv = yargs.option('url', {
     type: 'number',
     default: 2,
 }).option("historyBuffer", {
-    alias: 'h',
+    alias: 'b',
     description: "The history buffer size for previous transcribed text",
     type: "number",
     default: 0,
@@ -55,6 +55,7 @@ const argv = yargs.option('url', {
 if (argv.url === undefined) {
     throw new Error("No url provided");
 }
+console.log(argv.historyBuffer);
 let childProcessTracker = {};
 function createWindow() {
     const win = new electron_1.BrowserWindow({
