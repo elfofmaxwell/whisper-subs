@@ -55,7 +55,6 @@ const argv = yargs.option('url', {
 if (argv.url === undefined) {
     throw new Error("No url provided");
 }
-console.log(argv.historyBuffer);
 let childProcessTracker = {};
 function createWindow() {
     const win = new electron_1.BrowserWindow({

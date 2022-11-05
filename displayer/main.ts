@@ -55,7 +55,6 @@ const argv = yargs.option(
 if (argv.url === undefined) {
     throw new Error("No url provided");
 }
-console.log(argv.historyBuffer);
 
 let childProcessTracker: ChildProcessTracker = {};
 
