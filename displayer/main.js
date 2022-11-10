@@ -51,6 +51,14 @@ const argv = yargs.option('url', {
     description: "The history buffer size for previous transcribed text",
     type: "number",
     default: 0,
+}).option('cookies', {
+    description: "The cookie string passed to ffmpeg",
+    type: "string",
+    default: "",
+}).option("direct_link", {
+    description: "whether the link is the direct stream link",
+    type: "boolean",
+    default: false,
 }).help().alias('help', 'h').parseSync();
 if (argv.url === undefined) {
     throw new Error("No url provided");
@@ -68,16 +76,22 @@ function createWindow() {
     });
     function loadSubtitle() {
         var _a, _b;
-        childProcessTracker.liveTranscripterProc = child_process.spawn("python", [
-            "-u",
-            path.join(path.dirname(__dirname), "transcripter", "transcripter.py"),
+        let transcripter_args = [
             argv.url,
             "--model", argv.model,
             "--language", argv.language,
             "--task", "transcribe",
             "--interval", String(argv.interval),
             "--history_buffer_size", String(argv.historyBuffer),
-        ]);
+            "--cookies", argv.cookies,
+        ];
+        if (argv.direct_link === true) {
+            transcripter_args.push('--direct_url');
+        }
+        childProcessTracker.liveTranscripterProc = child_process.spawn("python", [
+            "-u",
+            path.join(path.dirname(__dirname), "transcripter", "transcripter.py"),
+        ].concat(transcripter_args));
         (_a = childProcessTracker.liveTranscripterProc.stdout) === null || _a === void 0 ? void 0 : _a.on('data', (data) => {
             console.log(data.toString('utf-8'));
             win.webContents.send('update-subtitle', data.toString('utf-8'));

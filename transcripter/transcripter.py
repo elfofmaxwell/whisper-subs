@@ -70,12 +70,28 @@ def writer(
 
 
 def open_stream(
-    stream: str, direct_url: bool, preferred_quality: str
+    stream: str, direct_url: bool, preferred_quality: str, cookies: str = ""
 ) -> Tuple[subprocess.Popen, None] | Tuple[subprocess.Popen, subprocess.Popen]:
+    cookies_lines = None
+    if cookies: 
+        if os.path.isfile(cookies): 
+            with open(cookies) as f: 
+                cookies_lines = f.readlines()[4:]
+    
+    cookie_str_ffmpeg = ""
+    if type(cookies_lines) == list and cookies_lines: 
+        for cookie_line in cookies_lines: 
+            cookie_entries = cookie_line.split('\t')
+            cookie_entries_str = "%s=%s; domain=%s; path=%s;" % (cookie_entries[5], cookie_entries[6], cookie_entries[0], cookie_entries[2])
+            cookie_str_ffmpeg += cookie_entries_str
+
     if direct_url:
         try:
+            ffmpeg_input_kwargs = {"loglevel": "panic"}
+            if cookie_str_ffmpeg: 
+                ffmpeg_input_kwargs["cookies"] = cookie_str_ffmpeg
             ffmpeg_process = (
-                ffmpeg.input(stream, loglevel="panic")
+                ffmpeg.input(stream, **ffmpeg_input_kwargs)
                 .output("pipe:", format="s16le", acodec="pcm_s16le", ac=1, ar=SAMPLE_RATE)
                 .run_async(pipe_stdout=True)
             )
@@ -132,6 +148,7 @@ def run_subscripter(
     alpha: float = 0.6, 
     font_name: str = "Noto Sans",
     refresh_interval: int = 1,
+    cookies: str = '',
     **decode_options
 ) -> None:
 
@@ -146,7 +163,10 @@ def run_subscripter(
         vad = VAD()
     
     print("Opening stream...")
-    ffmpeg_process, streamlink_process = open_stream(url, direct_url, preferred_quality)
+    open_stream_args = [url, direct_url, preferred_quality]
+    if cookies: 
+        open_stream_args.append(cookies)
+    ffmpeg_process, streamlink_process = open_stream(*open_stream_args)
 
     tmp_sub_fpath = 'sub_' + datetime.now().isoformat() + '.txt'
     displayer_process = None
@@ -269,6 +289,7 @@ def cli() -> None:
     parser.add_argument("--alpha", type=float, default=0.6, help="Alpha value for window transparency")
     parser.add_argument("--window_size", type=str, default="1920x200", help="Size of subtitle window")
     parser.add_argument("--font_name", type=str, default="Noto Sans", help="Font for subtitle")
+    parser.add_argument('--cookies', type=str, default="", help="cookies string passed to ffmpeg")
 
     args = parser.parse_args().__dict__
     url = args.pop("URL")

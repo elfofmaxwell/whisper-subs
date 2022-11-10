@@ -49,6 +49,20 @@ const argv = yargs.option(
         type: "number",
         default: 0, 
     }
+).option(
+    'cookies', 
+    {
+        description: "The cookie string passed to ffmpeg", 
+        type: "string", 
+        default: "",
+    }
+).option(
+    "direct_link", 
+    {
+        description: "whether the link is the direct stream link", 
+        type: "boolean", 
+        default: false,
+    }
 ).help().alias('help', 'h').parseSync();
 
 
@@ -73,18 +87,27 @@ function createWindow(): void {
 
 
     function loadSubtitle(): void {
+        let transcripter_args: string[] = [
+            argv.url!,
+            "--model", argv.model, 
+            "--language", argv.language, 
+            "--task", "transcribe", 
+            "--interval", String(argv.interval), 
+            "--history_buffer_size", String(argv.historyBuffer), 
+            "--cookies", argv.cookies,
+        ]
+
+        if (argv.direct_link === true) {
+            transcripter_args.push('--direct_url');
+        }
+
+
         childProcessTracker.liveTranscripterProc = child_process.spawn(
             "python", 
             [
                 "-u", 
                 path.join(path.dirname(__dirname), "transcripter", "transcripter.py"),
-                argv.url!,
-                "--model", argv.model, 
-                "--language", argv.language, 
-                "--task", "transcribe", 
-                "--interval", String(argv.interval), 
-                "--history_buffer_size", String(argv.historyBuffer), 
-            ]
+            ].concat(transcripter_args)
         )
 
         childProcessTracker.liveTranscripterProc.stdout?.on('data', (data: Buffer): void=>{
